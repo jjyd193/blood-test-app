@@ -73,12 +73,24 @@ export default function Input() {
 
   let content;
   if (step === 0) content = (
-    <div className="input-card"><h2>검사 받으신 날짜는 언제인가요?</h2><input className="date-input" type="date" value={profile.date} max={today()} onChange={(e) => setProfile({ ...profile, date: e.target.value })} /><button className="next-btn" onClick={moveNext}>다음으로 넘어가기</button></div>
+    <div className="input-card calendar-card">
+      <h2>검사 받으신 날짜는<br />언제인가요?</h2>
+      <input className="date-input calendar-date-input" type="date" value={profile.date} max={today()} onChange={(e) => setProfile({ ...profile, date: e.target.value })} />
+      <button className="calendar-next-btn" onClick={moveNext}>다음으로 넘어가기</button>
+      <footer className="onboarding-disclaimer">본 앱은 의료 진단 및 치료 목적이 아니며,<br />정확한 의학적 판단은 반드시 의사와 상담하십시오</footer>
+    </div>
   );
   else if (step === 1) content = (
-    <div className="input-card"><h2>성별을 선택해주세요</h2><div className="two-grid"><button className={profile.gender === 'male' ? 'choice selected' : 'choice'} onClick={() => setProfile({ ...profile, gender:'male' })}>남성</button><button className={profile.gender === 'female' ? 'choice selected' : 'choice'} onClick={() => setProfile({ ...profile, gender:'female' })}>여성</button></div><button className="next-btn" onClick={() => profile.gender ? moveNext() : showToast('성별을 선택해주세요')}>다음으로 넘어가기</button></div>
-  );
-  else if (step === 2) content = (
+    <div className="input-card gender-screen">
+      <h2>성별을 선택해주세요</h2>
+      <div className="gender-button-list">
+        <button type="button" className={profile.gender === 'male' ? 'gender-option gender-male selected' : 'gender-option gender-male'} onClick={() => setProfile({ ...profile, gender:'male' })}>남성</button>
+        <button type="button" className={profile.gender === 'female' ? 'gender-option gender-female selected' : 'gender-option gender-female'} onClick={() => setProfile({ ...profile, gender:'female' })}>여성</button>
+      </div>
+      <button type="button" className="gender-next-button" onClick={() => profile.gender ? moveNext() : showToast('성별을 선택해주세요')}>다음으로 넘어가기</button>
+      <footer className="gender-disclaimer">본 앱은 의료 진단 및 치료 목적이 아니며,<br />정확한 의학적 판단은 반드시 의사와 상담하십시오</footer>
+    </div>
+  );  else if (step === 2) content = (
     <div className="input-card"><h2>연령대를 선택해주세요</h2><div className="age-grid">{ageGroups.map((a) => <button key={a.value} className={profile.ageGroup === a.value ? 'choice selected' : 'choice'} onClick={() => setProfile({ ...profile, ageGroup:a.value })}>{a.label}</button>)}</div><button className="next-btn" onClick={() => profile.ageGroup ? moveNext() : showToast('연령대를 선택해주세요')}>다음으로 넘어가기</button></div>
   );
   else {
