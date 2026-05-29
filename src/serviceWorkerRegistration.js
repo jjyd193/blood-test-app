@@ -1,10 +1,16 @@
 export function register() {
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/service-worker.js').catch(() => {});
-    });
-  }
+  unregister();
 }
 export function unregister() {
-  if ('serviceWorker' in navigator) navigator.serviceWorker.ready.then((r) => r.unregister());
+  if (!('serviceWorker' in navigator)) return;
+
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    registrations.forEach((registration) => {
+      registration.unregister();
+    });
+  });
+
+  navigator.serviceWorker.ready
+    .then((registration) => registration.unregister())
+    .catch(() => {});
 }
