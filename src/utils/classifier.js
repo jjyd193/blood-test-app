@@ -7,18 +7,56 @@ export const STATUS = {
   RED: 'redFlag',
 };
 
-export function getRange(test, gender) {
-  if (gender === 'male' && test.normalRange.male) return test.normalRange.male;
-  if (gender === 'female' && test.normalRange.female) return test.normalRange.female;
-  return test.normalRange.default || test.normalRange.male || test.normalRange.female || [null, null];
+export function getAgeGroup(ageGroup) {
+  return ({
+    under30: 'under30',
+    thirties: 'thirties',
+    forties: 'forties',
+    fifties: 'fifties',
+    sixties: 'sixties',
+    over70: 'over70',
+    '30대 미만': 'under30',
+    '30-39세': 'thirties',
+    '40-49세': 'forties',
+    '50-59세': 'fifties',
+    '60-69세': 'sixties',
+    '70세 이상': 'over70',
+    under50: 'fifties',
+    '50대 미만': 'fifties',
+    '50-64': 'fifties',
+    '50-64세': 'fifties',
+    '65-74': 'sixties',
+    '65-74세': 'sixties',
+    '75+': 'over70',
+    '75세 이상': 'over70',
+  })[ageGroup] || ageGroup || 'fifties';
 }
 
-export function getRangeLabel(test, gender) {
-  const [min, max] = getRange(test, gender);
+function resolveRange(range, ageGroup) {
+  if (Array.isArray(range)) return range;
+  if (!range) return null;
+  const normalizedAgeGroup = getAgeGroup(ageGroup);
+  return range[normalizedAgeGroup] || range.default || null;
+}
+
+export function getRange(test, gender, ageGroup) {
+  if (gender === 'male') {
+    const range = resolveRange(test.normalRange.male, ageGroup);
+    if (range) return range;
+  }
+  if (gender === 'female') {
+    const range = resolveRange(test.normalRange.female, ageGroup);
+    if (range) return range;
+  }
+  return resolveRange(test.normalRange.default, ageGroup) || resolveRange(test.normalRange.male, ageGroup) || resolveRange(test.normalRange.female, ageGroup) || [null, null];
+}
+
+export function getRangeLabel(test, gender, ageGroup) {
+  const [min, max] = getRange(test, gender, ageGroup);
   const basis = test.genderRequired ? (gender === 'female' ? '여성 기준' : '남성 기준') : '일반 기준';
   if (min === 0 && max != null) return `${max} ${test.unit} 이하 (${basis})`;
   if (test.reverse) return `${min} ${test.unit} 이상 (${basis})`;
-  return `${min} – ${max} ${test.unit} (${basis})`;
+  return `${min} ~ ${max} ${test.unit} (${basis})`;
 }
 
 export function isRedFlag(test, value, gender) {
@@ -36,12 +74,12 @@ export function isRedFlag(test, value, gender) {
   return false;
 }
 
-export function classifyValue(test, value, gender) {
+export function classifyValue(test, value, gender, ageGroup) {
   if (value === null || value === undefined || value === '') return null;
   const num = Number(value);
   if (Number.isNaN(num)) return null;
   if (isRedFlag(test, num, gender)) return STATUS.RED;
-  const [min, max] = getRange(test, gender);
+  const [min, max] = getRange(test, gender, ageGroup);
   if (test.reverse) return num >= min ? STATUS.NORMAL : STATUS.LOW;
   if (min !== null && num < min) return STATUS.LOW;
   if (max !== null && num > max) return STATUS.HIGH;
@@ -52,9 +90,9 @@ export function classifyRecord(record) {
   return tests
     .map((test) => {
       const value = record?.values?.[test.id];
-      const status = classifyValue(test, value, record?.gender);
+      const status = classifyValue(test, value, record?.gender, record?.ageGroup);
       if (!status) return null;
-      return { test, value, status, rangeLabel: getRangeLabel(test, record?.gender) };
+      return { test, value, status, rangeLabel: getRangeLabel(test, record?.gender, record?.ageGroup) };
     })
     .filter(Boolean);
 }

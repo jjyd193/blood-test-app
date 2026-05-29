@@ -1,14 +1,27 @@
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import html2canvas from 'html2canvas';
 import ResultCard from '../components/ResultCard';
 import { classifyRecord, getStatusOrder } from '../utils/classifier';
+import { getAllRecords } from '../utils/db';
 
 export default function Result() {
   const navigate = useNavigate();
   const location = useLocation();
   const captureRef = useRef(null);
-  const record = location.state?.record || JSON.parse(localStorage.getItem('records') || '[]').at(-1);
+  const [latestRecord, setLatestRecord] = useState(location.state?.record);
+  const record = location.state?.record || latestRecord;
+
+  useEffect(() => {
+    if (location.state?.record) return;
+
+    const loadLatestRecord = async () => {
+      const records = await getAllRecords();
+      setLatestRecord(records.at(-1));
+    };
+
+    loadLatestRecord();
+  }, [location.state?.record]);
   const items = useMemo(() => record ? classifyRecord(record).sort((a, b) => getStatusOrder(a.status) - getStatusOrder(b.status)) : [], [record]);
   const counts = items.reduce((acc, item) => ({ ...acc, [item.status]: (acc[item.status] || 0) + 1 }), { normal:0, high:0, low:0, redFlag:0 });
   const redItems = items.filter((i) => i.status === 'redFlag');

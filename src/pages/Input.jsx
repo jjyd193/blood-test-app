@@ -3,16 +3,23 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { tests } from '../constants/tests';
 import CustomKeypad from '../components/CustomKeypad';
 import SlideCard from '../components/SlideCard';
-import { detectUnitConfusion } from '../utils/classifier';
+import { detectUnitConfusion, getAgeGroup } from '../utils/classifier';
+import { saveRecord as saveRecordToDB } from '../utils/db';
 
-const ageGroups = ['50대 미만', '50-64세', '65-74세', '75세 이상'];
+const ageGroups = [
+  { value: 'under30', label: '30대 미만' },
+  { value: 'thirties', label: '30-39세' },
+  { value: 'forties', label: '40-49세' },
+  { value: 'fifties', label: '50-59세' },
+  { value: 'sixties', label: '60-69세' },
+  { value: 'over70', label: '70세 이상' },
+];
 const today = () => new Date().toISOString().slice(0, 10);
 const formatDate = (date) => date.replace(/(\d{4})-(\d{2})-(\d{2})/, '$1년 $2월 $3일');
 
 export default function Input() {
   const navigate = useNavigate();
   const location = useLocation();
-  const editIndex = location.state?.editIndex;
   const editingRecord = location.state?.record;
   const [step, setStep] = useState(0);
   const [direction, setDirection] = useState('next');
@@ -20,7 +27,7 @@ export default function Input() {
   const [profile, setProfile] = useState({
     date: editingRecord?.date || today(),
     gender: editingRecord?.gender || '',
-    ageGroup: editingRecord?.ageGroup || '',
+    ageGroup: editingRecord?.ageGroup ? getAgeGroup(editingRecord.ageGroup) : '',
   });
   const initialValues = useMemo(() => {
     const values = {};
@@ -33,20 +40,16 @@ export default function Input() {
   const moveBack = () => { setDirection('back'); setStep((s) => Math.max(s - 1, 0)); };
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 1800); };
 
-  const saveRecord = () => {
+  const saveRecord = async () => {
     if (!window.confirm(`검사일: ${formatDate(profile.date)} — 맞으신가요?`)) return;
     const parsedValues = {};
     tests.forEach((test) => { parsedValues[test.id] = values[test.id] === '' ? null : Number(values[test.id]); });
-    const record = { date: profile.date, gender: profile.gender, ageGroup: profile.ageGroup, values: parsedValues };
-    const records = JSON.parse(localStorage.getItem('records') || '[]');
-    if (editIndex !== undefined) records[editIndex] = record;
-    else records.push(record);
-    records.sort((a, b) => a.date.localeCompare(b.date));
-    localStorage.setItem('records', JSON.stringify(records));
+    const record = { date: profile.date, gender: profile.gender, ageGroup: getAgeGroup(profile.ageGroup), values: parsedValues };
+    await saveRecordToDB(record);
     navigate('/result', { state: { record } });
   };
 
-  const validateAndNext = () => {
+  const validateAndNext = async () => {
     const test = tests[step - 3];
     const raw = values[test.id];
     if (raw === '') return showToast('[건너뛰기] 버튼을 눌러 다음으로 넘어갈 수 있어요');
@@ -57,14 +60,14 @@ export default function Input() {
       const ok = window.confirm(`입력하신 수치를 다시 확인해주세요\n\n${test.name}은 보통 ${test.allowedMin}~${test.allowedMax} 사이 값이에요.\n검사지를 다시 확인해주시겠어요?\n\n[확인] 이 수치로 저장 / [취소] 다시 입력`);
       if (!ok) return;
     }
-    if (step === tests.length + 2) saveRecord();
+    if (step === tests.length + 2) await saveRecord();
     else moveNext();
   };
 
-  const skip = () => {
+  const skip = async () => {
     const test = tests[step - 3];
     setValues((prev) => ({ ...prev, [test.id]: '' }));
-    if (step === tests.length + 2) saveRecord();
+    if (step === tests.length + 2) await saveRecord();
     else moveNext();
   };
 
@@ -76,7 +79,7 @@ export default function Input() {
     <div className="input-card"><h2>성별을 선택해주세요</h2><div className="two-grid"><button className={profile.gender === 'male' ? 'choice selected' : 'choice'} onClick={() => setProfile({ ...profile, gender:'male' })}>남성</button><button className={profile.gender === 'female' ? 'choice selected' : 'choice'} onClick={() => setProfile({ ...profile, gender:'female' })}>여성</button></div><button className="next-btn" onClick={() => profile.gender ? moveNext() : showToast('성별을 선택해주세요')}>다음으로 넘어가기</button></div>
   );
   else if (step === 2) content = (
-    <div className="input-card"><h2>연령대를 선택해주세요</h2><div className="age-grid">{ageGroups.map((a) => <button key={a} className={profile.ageGroup === a ? 'choice selected' : 'choice'} onClick={() => setProfile({ ...profile, ageGroup:a })}>{a}</button>)}</div><button className="next-btn" onClick={() => profile.ageGroup ? moveNext() : showToast('연령대를 선택해주세요')}>다음으로 넘어가기</button></div>
+    <div className="input-card"><h2>연령대를 선택해주세요</h2><div className="age-grid">{ageGroups.map((a) => <button key={a.value} className={profile.ageGroup === a.value ? 'choice selected' : 'choice'} onClick={() => setProfile({ ...profile, ageGroup:a.value })}>{a.label}</button>)}</div><button className="next-btn" onClick={() => profile.ageGroup ? moveNext() : showToast('연령대를 선택해주세요')}>다음으로 넘어가기</button></div>
   );
   else {
     const test = tests[step - 3];
